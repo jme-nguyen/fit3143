@@ -160,8 +160,8 @@ int main(void)
     long       count;
     long      *primes = NULL;
     long       slice_size;
-    struct timespec start, end;
-    double     elapsed;
+    struct timespec start, end, startComp, endComp;
+    double     elapsed, elapsedComp;
 
     printf("Enter n (search for primes strictly less than n): ");
     if (scanf("%ld", &n) != 1) {
@@ -213,8 +213,11 @@ int main(void)
         return EXIT_FAILURE;
     }
 
-    /* ------- Timed section: thread creation, search, join and merge ------- */
+    /* -- Timed section: thread creation, search, join, merge and output -- */
     clock_gettime(CLOCK_MONOTONIC, &start);
+
+    /* --- Timed sub-section: thread creation, search, join and merge --- */
+    clock_gettime(CLOCK_MONOTONIC, &startComp);
 
     for (t = 0; t < num_threads; t++) {
         if (pthread_create(&threads[t], NULL, find_primes, &data[t]) != 0) {
@@ -229,11 +232,8 @@ int main(void)
 
     count = merge_results(data, num_threads, primes);
 
-    clock_gettime(CLOCK_MONOTONIC, &end);
+    clock_gettime(CLOCK_MONOTONIC, &endComp);
     /* ---------------------------------------------------------------------- */
-
-    elapsed = (double)(end.tv_sec - start.tv_sec) +
-              (double)(end.tv_nsec - start.tv_nsec) / 1.0e9;
 
     /* The merge guarantees the list is in ascending order. */
     if (n < STDOUT_LIMIT) {
@@ -262,9 +262,18 @@ int main(void)
         printf("Prime numbers written to %s\n", OUTPUT_FILE);
     }
 
+    clock_gettime(CLOCK_MONOTONIC, &end);
+    /* ---------------------------------------------------------------------- */
+
+    elapsedComp = (double)(endComp.tv_sec - startComp.tv_sec) +
+                  (double)(endComp.tv_nsec - startComp.tv_nsec) / 1.0e9;
+    elapsed = (double)(end.tv_sec - start.tv_sec) +
+              (double)(end.tv_nsec - start.tv_nsec) / 1.0e9;
+
     printf("Threads used: %d\n", num_threads);
     printf("Total primes found: %ld\n", count);
-    printf("Elapsed time: %.6f seconds\n", elapsed);
+    printf("Computational time only (s): %.6f\n", elapsedComp);
+    printf("Overall time, including output (s): %.6f\n", elapsed);
 
     /* Per-thread counts show how evenly the cyclic decomposition shared out
        the work - useful evidence when discussing load balance. */

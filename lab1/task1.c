@@ -65,8 +65,8 @@ int main(void)
     long k;
     long count = 0;
     long *primes = NULL;
-    struct timespec start, end;
-    double elapsed;
+    struct timespec start, end, startComp, endComp;
+    double elapsed, elapsedComp;
 
     printf("Enter n (search for primes strictly less than n): ");
     if (scanf("%ld", &n) != 1) {
@@ -89,8 +89,11 @@ int main(void)
         return EXIT_FAILURE;
     }
 
-    /* ---------------- Timed section: the prime search ---------------- */
+    /* ---- Timed section: the prime search plus writing the output ---- */
     clock_gettime(CLOCK_MONOTONIC, &start);
+
+    /* ------------ Timed sub-section: the prime search only ----------- */
+    clock_gettime(CLOCK_MONOTONIC, &startComp);
 
     for (k = 2; k < n; k++) {
         if (is_prime(k)) {
@@ -98,11 +101,8 @@ int main(void)
         }
     }
 
-    clock_gettime(CLOCK_MONOTONIC, &end);
+    clock_gettime(CLOCK_MONOTONIC, &endComp);
     /* ----------------------------------------------------------------- */
-
-    elapsed = (double)(end.tv_sec - start.tv_sec) +
-              (double)(end.tv_nsec - start.tv_nsec) / 1.0e9;
 
     /*
      * Numbers are tested in ascending order, so the list is already sorted.
@@ -130,8 +130,17 @@ int main(void)
         printf("Prime numbers written to %s\n", OUTPUT_FILE);
     }
 
+    clock_gettime(CLOCK_MONOTONIC, &end);
+    /* ----------------------------------------------------------------- */
+
+    elapsedComp = (double)(endComp.tv_sec - startComp.tv_sec) +
+                  (double)(endComp.tv_nsec - startComp.tv_nsec) / 1.0e9;
+    elapsed = (double)(end.tv_sec - start.tv_sec) +
+              (double)(end.tv_nsec - start.tv_nsec) / 1.0e9;
+
     printf("Total primes found: %ld\n", count);
-    printf("Elapsed time: %.6f seconds\n", elapsed);
+    printf("Computational time only (s): %.6f\n", elapsedComp);
+    printf("Overall time, including output (s): %.6f\n", elapsed);
 
     free(primes);
     return EXIT_SUCCESS;
