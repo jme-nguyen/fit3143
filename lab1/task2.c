@@ -12,9 +12,14 @@
  *   cannot be greater than sqrt(k), so at least one factor is <= sqrt(k) and
  *   testing divisors from 2 up to sqrt(k) is sufficient.
  *
- * Parallel partitioning scheme: CYCLIC (interleaved) DECOMPOSITION
- *   Thread t tests the candidates  k = 2+t, 2+t+T, 2+t+2T, ...  where T is the
- *   number of threads.
+ * Parallel partitioning scheme: CYCLIC (interleaved) DECOMPOSITION over ODD
+ * candidates only
+ *   2 is the only even prime, so thread 0 records it directly and every
+ *   thread then tests only odd candidates:
+ *   thread t tests  k = 3+2t, 3+2t+2T, 3+2t+4T, ...  where T is the number of
+ *   threads. This is the same halving used in Task 1 (skip even numbers
+ *   entirely rather than let is_prime() reject them one at a time), applied
+ *   per thread.
  *
  *   Why not a contiguous block decomposition? The cost of is_prime(k) grows
  *   with sqrt(k), so a thread given the top block [n/2, n) does far more work
@@ -29,8 +34,8 @@
  * conditions and no mutex overhead. The per-thread lists are combined by a
  * k-way merge after pthread_join(), which restores the global ascending order.
  *
- * Compile: gcc -o lab4task2 lab4task2.c -lpthread -lm
- * Run:     ./lab4task2
+ * Compile: gcc -o task2 task2.c -lpthread -lm
+ * Run:     ./task2
  */
 
 #include <stdio.h>
@@ -98,7 +103,13 @@ void *find_primes(void *arg)
 
     data->count = 0;
 
-    for (k = 2 + data->thread_id; k < data->n; k += data->num_threads) {
+    /* 2 is the only even prime, so thread 0 records it directly and every
+     * thread then interleaves over odd candidates only. */
+    if (data->thread_id == 0 && data->n > 2) {
+        data->primes[data->count++] = 2;
+    }
+
+    for (k = 3 + 2 * data->thread_id; k < data->n; k += 2 * data->num_threads) {
         if (is_prime(k)) {
             data->primes[data->count++] = k;
         }
@@ -183,10 +194,11 @@ int main(void)
 
     /*
      * Upper bound on the candidates handed to any one thread by the cyclic
-     * decomposition, and therefore on the primes it can find. Allocating up
-     * front keeps allocation out of the timed section.
+     * decomposition over odd numbers, plus one slot for thread 0's "2", and
+     * therefore on the primes it can find. Allocating up front keeps
+     * allocation out of the timed section.
      */
-    slice_size = (n / num_threads) + 1;
+    slice_size = (n / (2 * num_threads)) + 2;
 
     for (t = 0; t < num_threads; t++) {
         data[t].thread_id   = t;
@@ -274,14 +286,6 @@ int main(void)
     printf("Total primes found: %ld\n", count);
     printf("Computational time only (s): %.6f\n", elapsedComp);
     printf("Overall time, including output (s): %.6f\n", elapsed);
-
-    /* Per-thread counts show how evenly the cyclic decomposition shared out
-       the work - useful evidence when discussing load balance. */
-    printf("Primes found per thread:");
-    for (t = 0; t < num_threads; t++) {
-        printf(" [T%d]=%ld", t, data[t].count);
-    }
-    printf("\n");
 
     free(primes);
     for (t = 0; t < num_threads; t++) {
