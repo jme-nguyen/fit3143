@@ -13,8 +13,8 @@
  *   sqrt(k) is sufficient to decide primality. This reduces the work per number
  *   from O(k) to O(sqrt(k)), which matters greatly for n up to 10,000,000.
  *
- * Compile: gcc -o lab4task1 lab4task1.c -lm
- * Run:     ./lab4task1
+ * Compile: gcc -o task1 task1.c -lm
+ * Run:     ./task1
  */
 
 #include <stdio.h>
@@ -95,7 +95,13 @@ int main(void)
     /* ------------ Timed sub-section: the prime search only ----------- */
     clock_gettime(CLOCK_MONOTONIC, &startComp);
 
-    for (k = 2; k < n; k++) {
+    /* 2 is the only even prime, so it is recorded directly and every other
+     * candidate tested is odd. */
+    if (n > 2) {
+        primes[count++] = 2;
+    }
+
+    for (k = 3; k < n; k += 2) {
         if (is_prime(k)) {
             primes[count++] = k;
         }
